@@ -80,6 +80,7 @@ See the documentation for [Hiera-Eyaml](https://github.com/voxpupuli/hiera-eyaml
 * `secret_id`: Secret ID to use to authenticate (see above)
 * `use_ssl`: Boolean, Whether to use SSL to connect to vault (default true)
 * `ssl_verify`: Boolean, Whether to verify SSL certs when connecting to vault (default true)
+* `transitname`: Name of the vault transit engine to use (default: transit)
 * `keyname`: Name of the vault transit key to use (see above).  (default: hiera)
 * `api_version`: Version of the vault API to use (default: 1)
 

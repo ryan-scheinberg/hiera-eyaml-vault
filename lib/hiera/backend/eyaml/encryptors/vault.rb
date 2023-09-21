@@ -14,7 +14,7 @@ class Hiera
           end
 
 
-          VERSION = "1.0.1"
+          VERSION = "1.0.2"
           HTTP_HANDLER = Hiera::Backend::Eyaml::Encryptors::Vault::Httphandler
 
           self.tag = 'VAULT'
@@ -56,6 +56,12 @@ class Hiera
             :ssl_key => {
               desc: "SSL Private key to connect with",
               type: :string
+            },
+
+            :transitname => {
+              desc: "Vault transit engine name (default 'transit')",
+              type: :string,
+              default: 'transit'
             },
 
             :keyname => {
@@ -159,8 +165,8 @@ class Hiera
 
             def endpoint(action)
               {
-                :decrypt => "transit/decrypt/#{option :keyname}",
-                :encrypt => "transit/encrypt/#{option :keyname}",
+                :decrypt => "#{option :transitname}/decrypt/#{option :keyname}",
+                :encrypt => "#{option :transitname}/encrypt/#{option :keyname}",
                 :login   => "auth/approle/login"
               }[action]
             end
