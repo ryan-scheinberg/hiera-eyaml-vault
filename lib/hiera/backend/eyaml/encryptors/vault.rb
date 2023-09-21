@@ -12,9 +12,7 @@ class Hiera
         class Vault < Encryptor
           class AuthenticationError < Exception
           end
-
-
-          VERSION = "1.0.3"
+          
           HTTP_HANDLER = Hiera::Backend::Eyaml::Encryptors::Vault::Httphandler
 
           self.tag = 'VAULT'
@@ -33,6 +31,21 @@ class Hiera
 
             :secret_id => {
               desc: "secret_id for the Approle",
+              type: :string,
+            },
+
+            :auth_name => {
+              desc: "Name for certificate-based authentication",
+              type: :string,
+            },
+
+            :client_cert => {
+              desc: "Path to the client certificate for certificate-based authentication",
+              type: :string,
+            },
+
+            :client_key => {
+              desc: "Path to the client private key for certificate-based authentication",
               type: :string,
             },
 
@@ -115,14 +128,23 @@ class Hiera
             end
 
             def login
-              role_id = option :role_id
-              secret_id = option :secret_id
+              if option(:role_id)
+                role_id = option :role_id
+                secret_id = option :secret_id
 
-              login_data = { "role_id" => role_id }
-              login_data['secret_id'] = secret_id unless secret_id.nil?
+                login_data = { "role_id" => role_id }
+                login_data['secret_id'] = secret_id unless secret_id.nil?
 
-              response = vault_post(login_data, :login, false)
-              @approle_token = response['auth']['client_token']
+                response = vault_post(login_data, :login, false)
+                @login_token = response['auth']['client_token']
+              elsif option(:client_cert)
+                auth_name = option :auth_name
+
+                login_data = { "auth_name" => auth_name }
+
+                response = vault_post(login_data, :cert_login, false)
+                @login_token = response['auth']['client_token']
+              end
             end
 
             def ssl?
@@ -146,6 +168,18 @@ class Hiera
               @vault_ssl_cert
             end
 
+            def client_cert
+              return nil if option(:client_cert).nil?
+              @vault_client_cert ||= read_file(option :client_cert)
+              @vault_client_cert
+            end
+
+            def client_key
+              return nil if option(:client_key).nil?
+              @vault_client_key ||= read_file(option :client_key)
+              @vault_client_key
+            end
+
 
             def token_configured?
               return true if ENV['VAULT_TOKEN']
@@ -154,28 +188,27 @@ class Hiera
 
             def token
               authenticate
-              ENV['VAULT_TOKEN'] || option(:token) || @approle_token
+              ENV['VAULT_TOKEN'] || option(:token) || @login_token
             end
 
             def authenticate
               unless token_configured?
-                login if @approle_token.nil?
+                login if @login_token.nil?
               end
             end
 
             def endpoint(action)
               {
-                :decrypt => "#{option :transitname}/decrypt/#{option :keyname}",
-                :encrypt => "#{option :transitname}/encrypt/#{option :keyname}",
-                :login   => "auth/approle/login"
+                :decrypt    => "#{option :transitname}/decrypt/#{option :keyname}",
+                :encrypt    => "#{option :transitname}/encrypt/#{option :keyname}",
+                :login      => "auth/approle/login",
+                :cert_login => "auth/cert/login"
               }[action]
             end
 
             def url_path(action)
               vault_url(endpoint(action))
             end
-
-
 
             def parse_response(response)
               body = JSON.load(response.body)
@@ -197,8 +230,12 @@ class Hiera
             def vault_post(data, action, use_token=true, headers={})
               url = url_path(action)
               http_options = {}
-
-              if ssl?
+              if option(:client_cert)
+                http_options = {
+                  :cert   => client_cert,
+                  :key    => client_key,
+                }
+              elsif ssl?
                 http_options = {
                   :ssl        => true,
                   :ssl_verify => option(:ssl_verify),

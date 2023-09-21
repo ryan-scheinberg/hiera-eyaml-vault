@@ -46,7 +46,7 @@ Next, add the policy with the following command
 $ vault policy write hiera hiera_policy.hcl
 ```
 
-#### Create an Approle to use the Hiera policy
+#### Option 1: Create an Approle to use the Hiera policy
 
 Enable the approle auth method
 
@@ -62,11 +62,26 @@ $ vault write auth/approle/role/hiera token_ttl=10m policies=hiera
 
 #### Copy the credentials
 
-Hiera-eyaml-vault requires the *role_id* and *secret_id* to be configured, obtain these by issuing the following commands
+Hiera-eyaml-vault approle requires the *role_id* and *secret_id* to be configured, obtain these by issuing the following commands
 
 ```
 $ vault read auth/approle/role/hiera/role-id
 $ vault write -f auth/approle/role/hiera/secret-id
+```
+
+#### Option 2: Create a Cert Auth to use the Hiera policy
+
+Enable the cert auth method
+
+```
+$ vault auth enable cert
+```
+
+Create the approle
+
+```
+$ $ vault write auth/cert/certs/puppet_servers display_name=puppet_servers policies=hiera certificate=@path_to_public_certificate.pem ttl=3600
+
 ```
 
 ## Configuring hiera-eyaml-vault
@@ -76,15 +91,21 @@ $ vault write -f auth/approle/role/hiera/secret-id
 See the documentation for [Hiera-Eyaml](https://github.com/voxpupuli/hiera-eyaml) for integrating Hiera with Eyaml, and how to enable encrypting plugins.  The following options are configurable for this plugin;
 
 * `vault_addr`: URL of the Vault server to connect to (default https://127.0.0.1:8200)
-* `role_id`: Role ID to use to authenticate (see above)
-* `secret_id`: Secret ID to use to authenticate (see above)
+* `role_id`: App Role ID to use to authenticate (see above)
+* `secret_id`: App Secret ID to use to authenticate (see above)
 * `use_ssl`: Boolean, Whether to use SSL to connect to vault (default true)
 * `ssl_verify`: Boolean, Whether to verify SSL certs when connecting to vault (default true)
 * `transitname`: Name of the vault transit engine to use (default: transit)
 * `keyname`: Name of the vault transit key to use (see above).  (default: hiera)
 * `api_version`: Version of the vault API to use (default: 1)
 
-### Example
+The following options are added for the plugin to support certificate-based authentication:
+
+* `client_cert`: Path to the client certificate for certificate-based authentication.
+* `client_key`: Path to the client private key for certificate-based authentication.
+* `auth_name`: Name used for certificate-based authentication. This should match the name given when adding the certificate to Vault (puppet_servers).
+
+### App Auth Example
 
 ```
 cat ~/.eyaml/config.yaml
@@ -95,6 +116,19 @@ vault_addr: https://vault.corp.com:8200
 vault_role_id: 987ad87-77dd-339a-787b-798793872a
 vault_secret_id: 66255f7-225c-112a-b565-99873626f3
 vault_ssl_verify: false
+```
+
+### Cert Auth Example
+
+```
+cat ~/.eyaml/config.yaml
+
+---
+encrypt_method: vault
+vault_addr: https://vault.corp.com:8200
+client_cert: /path/to/client_cert.pem
+client_key: /path/to/client_key.pem
+auth_name: puppet_servers
 ```
 
 ### Usage
