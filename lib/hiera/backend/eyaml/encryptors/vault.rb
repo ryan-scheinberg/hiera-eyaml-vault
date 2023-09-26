@@ -120,22 +120,8 @@ class Hiera
                   return config_option
                 end
               end
-              
-              # Fall back to super if the configuration file doesn’t have the value
-              resolved_option = super(key)
-              if resolved_option
-                puts "Resolved from super: #{resolved_option}" if debug
-                return resolved_option
-              end
-              
-              # If super also fails to provide a value, use the default value if available
-              if self.class.options && self.class.options[key.to_sym] && self.class.options[key.to_sym][:default]
-                default_value = self.class.options[key.to_sym][:default]
-                puts "Using default value: #{default_value}" if debug
-                return default_value
-              end
-              
-              # If no value is found, fallback to super one more time
+
+              # If no value is found, fallback to super
               puts "Falling back to super for key: #{key}" if debug
               super
             end
