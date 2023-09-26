@@ -71,16 +71,16 @@ class Hiera
               type: :string
             },
 
-            :transitname => {
+            :transit_name => {
               desc: "Vault transit engine name (default 'transit')",
               type: :string,
-              default: 'transit'
+              default: "transit"
             },
 
-            :keyname => {
+            :key_name => {
               desc: "Vault transit key name (default 'hiera')",
               type: :string,
-              default: 'hiera'
+              default: "hiera"
             },
 
             :api_version => {
@@ -105,12 +105,29 @@ class Hiera
             # configuration to fall back on
             #
             def option(key)
-              return super(key) if super(key)
+              # Check for the existence of a DEBUG environment variable
+              debug = ENV['EYAML_DEBUG'] == 'true'
+
+              # Output debug information if the debug mode is enabled
+              puts "Resolving option for key: #{key}" if debug
+
+              resolved_option = super(key)
+              if resolved_option
+                puts "Resolved from super: #{resolved_option}" if debug
+                return resolved_option
+              end
 
               load_config if @config_defaults.nil?
+
               unless @config_defaults.nil?
-                return @config_defaults[key.to_s] if @config_defaults[key.to_s]
+                config_option = @config_defaults[key.to_s]
+                if config_option
+                  puts "Resolved from config_defaults: #{config_option}" if debug
+                  return config_option
+                end
               end
+
+              puts "Falling back to super for key: #{key}" if debug
               super
             end
 
@@ -140,7 +157,7 @@ class Hiera
               elsif option(:client_cert)
                 auth_name = option :auth_name
 
-                login_data = { "auth_name" => auth_name }
+                login_data = { "name" => auth_name }
 
                 response = vault_post(login_data, :cert_login, false)
                 @login_token = response['auth']['client_token']
@@ -180,7 +197,6 @@ class Hiera
               @vault_client_key
             end
 
-
             def token_configured?
               return true if ENV['VAULT_TOKEN']
               not option(:token).nil?
@@ -198,12 +214,24 @@ class Hiera
             end
 
             def endpoint(action)
-              {
-                :decrypt    => "#{option :transitname}/decrypt/#{option :keyname}",
-                :encrypt    => "#{option :transitname}/encrypt/#{option :keyname}",
+              # Check for the existence of a DEBUG environment variable
+              debug = ENV['EYAML_DEBUG'] == 'true'
+
+              # Compute the endpoints
+              endpoints = {
+                :decrypt    => "#{option(:transit_name)}/decrypt/#{option(:key_name)}",
+                :encrypt    => "#{option(:transit_name)}/encrypt/#{option(:key_name)}",
                 :login      => "auth/approle/login",
                 :cert_login => "auth/cert/login"
-              }[action]
+              }
+
+              # Output debug information if the debug mode is enabled
+              if debug
+                puts "Decrypt Endpoint: #{endpoints[:decrypt]}"
+                puts "Encrypt Endpoint: #{endpoints[:encrypt]}"
+              end
+
+              endpoints[action]
             end
 
             def url_path(action)
