@@ -105,20 +105,14 @@ class Hiera
             # configuration to fall back on
             #
             def option(key)
-              # Check for the existence of a DEBUG environment variable
+              # Debug flag
               debug = ENV['EYAML_DEBUG'] == 'true'
-
-              # Output debug information if the debug mode is enabled
               puts "Resolving option for key: #{key}" if debug
-
-              resolved_option = super(key)
-              if resolved_option
-                puts "Resolved from super: #{resolved_option}" if debug
-                return resolved_option
-              end
-
+              
+              # Load the configuration file if not already loaded
               load_config if @config_defaults.nil?
-
+              
+              # Try to resolve the option from the configuration file first
               unless @config_defaults.nil?
                 config_option = @config_defaults[key.to_s]
                 if config_option
@@ -126,10 +120,26 @@ class Hiera
                   return config_option
                 end
               end
-
+              
+              # Fall back to super if the configuration file doesn’t have the value
+              resolved_option = super(key)
+              if resolved_option
+                puts "Resolved from super: #{resolved_option}" if debug
+                return resolved_option
+              end
+              
+              # If super also fails to provide a value, use the default value if available
+              if self.class.options && self.class.options[key.to_sym] && self.class.options[key.to_sym][:default]
+                default_value = self.class.options[key.to_sym][:default]
+                puts "Using default value: #{default_value}" if debug
+                return default_value
+              end
+              
+              # If no value is found, fallback to super one more time
               puts "Falling back to super for key: #{key}" if debug
               super
             end
+            
 
             def create_keys
               diagnostic_message = self.option :diagnostic_message 
