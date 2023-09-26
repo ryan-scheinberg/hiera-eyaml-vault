@@ -125,7 +125,6 @@ class Hiera
               puts "Falling back to super for key: #{key}" if debug
               super
             end
-            
 
             def create_keys
               diagnostic_message = self.option :diagnostic_message 
