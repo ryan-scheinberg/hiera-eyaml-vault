@@ -15,7 +15,7 @@ class Hiera
           
           HTTP_HANDLER = Hiera::Backend::Eyaml::Encryptors::Vault_rs::Httphandler
 
-          self.tag = 'VAULT'
+          self.tag = 'VAULT_RS'
 
           self.options = {
             :addr => {
