@@ -6,7 +6,7 @@ class Hiera
   module Backend
     module Eyaml
       module Encryptors
-        class Vault < Encryptor
+        class Vault_rs < Encryptor
           class HTTPError < Exception
           end
           class Httphandler

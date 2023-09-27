@@ -1,6 +1,6 @@
 require 'base64'
 require 'hiera/backend/eyaml/encryptor'
-require 'hiera/backend/eyaml/encryptors/vault-rs/httphandler'
+require 'hiera/backend/eyaml/encryptors/vault_rs/httphandler'
 require 'hiera/backend/eyaml/utils'
 require 'hiera/backend/eyaml/plugins'
 require 'hiera/backend/eyaml/options'
@@ -9,11 +9,11 @@ class Hiera
   module Backend
     module Eyaml
       module Encryptors
-        class Vault < Encryptor
+        class Vault_rs < Encryptor
           class AuthenticationError < Exception
           end
           
-          HTTP_HANDLER = Hiera::Backend::Eyaml::Encryptors::Vault::Httphandler
+          HTTP_HANDLER = Hiera::Backend::Eyaml::Encryptors::Vault_rs::Httphandler
 
           self.tag = 'VAULT'
 
