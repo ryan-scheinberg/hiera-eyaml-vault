@@ -1,6 +1,6 @@
 require 'base64'
 require 'hiera/backend/eyaml/encryptor'
-require 'hiera/backend/eyaml/encryptors/vault/httphandler'
+require 'hiera/backend/eyaml/encryptors/vault-rs/httphandler'
 require 'hiera/backend/eyaml/utils'
 require 'hiera/backend/eyaml/plugins'
 require 'hiera/backend/eyaml/options'
