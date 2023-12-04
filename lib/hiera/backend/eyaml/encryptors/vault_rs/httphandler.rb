@@ -35,16 +35,12 @@ class Hiera
                 end
 
                 http = Net::HTTP.new(uri.host, uri.port)
-                if options[:cert]
-                  http.use_ssl = true
-                  http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-                  http.cert = OpenSSL::X509::Certificate.new(options[:cert])
-                  http.key = OpenSSL::PKey::RSA.new(options[:key])
-                elsif options[:ssl]
+                if options[:ssl]
                   http.use_ssl = true
                   http.verify_mode = options[:ssl_verify] ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
                   http.cert = OpenSSL::X509::Certificate.new(options[:ssl_cert]) if options[:ssl_cert]
                   http.key = OpenSSL::PKey::RSA.new(options[:ssl_key]) if options[:ssl_key]
+                  http.ca_file = options[:ca_file] if options[:ca_file]
                 end
 
                 begin
@@ -61,4 +57,3 @@ class Hiera
     end
   end
 end
-

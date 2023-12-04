@@ -12,12 +12,20 @@ class Hiera
         class Vault_rs < Encryptor
           class AuthenticationError < Exception
           end
-          
+
           HTTP_HANDLER = Hiera::Backend::Eyaml::Encryptors::Vault_rs::Httphandler
 
           self.tag = 'VAULT_RS'
 
           self.options = {
+
+            :login_type => {
+              desc: "Method to login to Vault",
+              type: :string,
+              # allowed_values: ['approle', 'cert', 'ldap']
+              default: "approle"
+            },
+
             :addr => {
               desc: "Address of the vault server",
               type: :string,
@@ -36,16 +44,6 @@ class Hiera
 
             :auth_name => {
               desc: "Name for certificate-based authentication",
-              type: :string,
-            },
-
-            :client_cert => {
-              desc: "Path to the client certificate for certificate-based authentication",
-              type: :string,
-            },
-
-            :client_key => {
-              desc: "Path to the client private key for certificate-based authentication",
               type: :string,
             },
 
@@ -71,6 +69,11 @@ class Hiera
               type: :string
             },
 
+            :ca_file => {
+              desc: "Path to the CA bundle file for SSL verification",
+              type: :string
+            },
+
             :transit_name => {
               desc: "Vault transit engine name (default 'transit')",
               type: :string,
@@ -81,6 +84,18 @@ class Hiera
               desc: "Vault transit key name (default 'hiera')",
               type: :string,
               default: "hiera"
+            },
+
+            :ldap_username => {
+              desc: "Vault LDAP login name",
+              type: :string,
+              default: ""
+            },
+
+            :ldap_password => {
+              desc: "Vault LDAP login password",
+              type: :string,
+              default: ""
             },
 
             :api_version => {
@@ -108,10 +123,10 @@ class Hiera
               # Debug flag
               debug = ENV['EYAML_DEBUG'] == 'true'
               puts "Resolving option for key: #{key}" if debug
-              
+
               # Load the configuration file if not already loaded
               load_config if @config_defaults.nil?
-              
+
               # Try to resolve the option from the configuration file first
               unless @config_defaults.nil?
                 config_option = @config_defaults[key.to_s]
@@ -127,7 +142,7 @@ class Hiera
             end
 
             def create_keys
-              diagnostic_message = self.option :diagnostic_message 
+              diagnostic_message = self.option :diagnostic_message
               puts "Create_keys: #{diagnostic_message}"
             end
 
@@ -140,7 +155,8 @@ class Hiera
             end
 
             def login
-              if option(:role_id)
+              case option(:login_type)
+              when 'approle'
                 role_id = option :role_id
                 secret_id = option :secret_id
 
@@ -149,13 +165,22 @@ class Hiera
 
                 response = vault_post(login_data, :login, false)
                 @login_token = response['auth']['client_token']
-              elsif option(:client_cert)
+              when 'cert'
                 auth_name = option :auth_name
 
                 login_data = { "name" => auth_name }
 
                 response = vault_post(login_data, :cert_login, false)
                 @login_token = response['auth']['client_token']
+              when 'ldap'
+                password = option :ldap_password
+
+                login_data = { "password" => password }
+
+                response = vault_post(login_data, :ldap_login, false)
+                @login_token = response['auth']['client_token']
+              else
+                raise ArgumentError, "Invalid login_type '#{option(:login_type)}'"
               end
             end
 
@@ -178,18 +203,6 @@ class Hiera
               return nil if option(:ssl_cert).nil?
               @vault_ssl_cert ||= read_file(option :ssl_cert)
               @vault_ssl_cert
-            end
-
-            def client_cert
-              return nil if option(:client_cert).nil?
-              @vault_client_cert ||= read_file(option :client_cert)
-              @vault_client_cert
-            end
-
-            def client_key
-              return nil if option(:client_key).nil?
-              @vault_client_key ||= read_file(option :client_key)
-              @vault_client_key
             end
 
             def token_configured?
@@ -217,7 +230,8 @@ class Hiera
                 :decrypt    => "#{option(:transit_name)}/decrypt/#{option(:key_name)}",
                 :encrypt    => "#{option(:transit_name)}/encrypt/#{option(:key_name)}",
                 :login      => "auth/approle/login",
-                :cert_login => "auth/cert/login"
+                :cert_login => "auth/cert/login",
+                :ldap_login => "auth/ldap/login/#{option(:ldap_username)}"
               }
 
               # Output debug information if the debug mode is enabled
@@ -253,18 +267,14 @@ class Hiera
             def vault_post(data, action, use_token=true, headers={})
               url = url_path(action)
               http_options = {}
-              if option(:client_cert)
-                http_options = {
-                  :cert   => client_cert,
-                  :key    => client_key,
-                }
-              elsif ssl?
+              if ssl?
                 http_options = {
                   :ssl        => true,
                   :ssl_verify => option(:ssl_verify),
                   :ssl_cert   => ssl_cert,
                   :ssl_key    => ssl_key,
                 }
+                http_options[:ca_file] = option(:ca_file) if option(:ca_file)
               end
 
               begin
@@ -292,7 +302,7 @@ class Hiera
               response_data=response['data']
               response_data['ciphertext']
             end
-          end 
+          end
         end
       end
     end
